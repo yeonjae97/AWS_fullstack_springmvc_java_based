@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="co.sukbinggo.mapper.BoardMapper">
+
+<sql id="search">
+		<trim prefix="AND (" suffix=")" prefixOverrides="or">
+			<foreach collection="typeArr" item="t">
+			<trim prefix="or">
+				<choose>
+					<when test="t == 'T'.toString()">
+<!-- 						title like '%'||#{keyword}||'%' -->
+						title like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+					<when test="t == 'C'.toString()">
+<!-- 						content like '%'||#{keyword}||'%' -->
+						content like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+					<when test="t == 'W'.toString()">
+						writer like CONCAT(CONCAT('%',#{keyword}),'%')
+					</when>
+				</choose>
+			</trim>	
+			</foreach>
+		</trim>
+</sql>
+
+
+  <select id="getList" resultType="board" >
+<!--  	where bno > 0 을 명시하는 이유는 검색했을 때 탐색이 더욱더 빨라지기 때문이다. -->
+  select * from tbl_board where bno > 0 order by bno desc
+  </select>
+  
+  <select id="getListWithPaging" resultType="board" >
+		select * 
+		from tbl_board tb 
+		where bno > 0
+		<include refid="search"/>
+		order by bno desc
+		limit #{amount} offset #{offset}
+  </select>
+  
+  
+<!--   글 등록시 쿼리문 -->
+  <insert id="insert">
+  insert into tbl_board (bno, title, content, writer) values (nextval(seq_board), #{title}, #{content}, #{writer})
+  </insert>
+  
+  
+<!--   글 등록시 쿼리문 (primary key 존재)   -->
+  <insert id="insertSelectKey">
+  <selectKey keyProperty="bno" order="BEFORE" resultType="long">
+<!--   select nextval(seq_board) -->
+	select nextval(seq_board) from dual
+  </selectKey>
+  insert into tbl_board (bno, title, content, writer) values (#{bno}, #{title}, #{content}, #{writer})
+  </insert>
+  
+  
+<!--   글 조회시 쿼리문 -->
+  <select id="read" resultMap="boardMap">
+  	SELECT * FROM tbl_board LEFT JOIN TBL_ATTACH ta USING (bno) WHERE bno = #{bno} order by odr
+<!--   	select * from tbl_board where bno = #{bno} -->
+  </select>
+  
+  <resultMap type="board" id="boardMap">
+  	<result property="bno" column="bno"/>
+  	<result property="title" column="title"/>
+  	<result property="content" column="content"/>
+  	<result property="writer" column="writer"/>
+  	<result property="regdate" column="regdate"/>
+  	<result property="updatedate" column="updatedate"/>
+  	<collection property="attachs" resultMap="attachMap"/>
+  		
+  </resultMap>
+  
+  <resultMap type="attach" id="attachMap">
+  	<result property="uuid" column="uuid"/>
+  	<result property="path" column="path"/>
+  	<result property="name" column="name"/>
+  	<result property="image" column="image"/>
+  	<result property="bno" column="bno"/>
+  </resultMap>
+  
+<!--   글 삭제시 쿼리문 -->
+  <delete id="delete">
+  	delete from tbl_board where bno = #{bno}
+  </delete>
+  
+  <update id="update">
+  	update tbl_board set
+  	title = #{title},
+  	content = #{content},
+  	writer = #{writer},
+  	updatedate = now()
+  	where bno = #{bno}
+  </update>
+  
+  
+  <select id="getTotalCnt" resultType="int">
+  	SELECT COUNT(*) 
+	FROM TBL_BOARD 
+	WHERE BNO > 0 
+	<include refid="search"/>
+  </select>
+  
+  <update id="updateReplyCnt">
+  	update tbl_board set replycnt = replycnt + #{amount} where bno = #{bno}
+  </update>
+</mapper>
